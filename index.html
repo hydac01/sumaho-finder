@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>スマホ会社ファインダー</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f7;--card:#fff;--ink:#14213d;--sub:#5b6785;--line:#d5dce8;--acc:#2f5bff;--accsoft:#e4eaff;--on:#fff;--bar:#ffb703;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1324;--card:#172038;--ink:#eef2fb;--sub:#a3aecb;--line:#2b3654;--acc:#7d9bff;--accsoft:#22305a;--on:#0d1324;--bar:#ffb703}}
+:root[data-theme="dark"]{--bg:#0d1324;--card:#172038;--ink:#eef2fb;--sub:#a3aecb;--line:#2b3654;--acc:#7d9bff;--accsoft:#22305a;--on:#0d1324;--bar:#ffb703}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.7}
+main{max-width:640px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:clamp(28px,7vw,40px);font-weight:900;line-height:1.25;margin:24px 0 12px;letter-spacing:.01em}
+.lead{color:var(--sub);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 18px}
+.prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:8px}
+.prog i{display:block;height:100%;background:var(--acc);transition:width .3s}
+.cnt{font-size:13px;color:var(--sub);margin-bottom:14px}
+h2{font-size:22px;line-height:1.4;margin:0 0 6px}
+.hint{font-size:14px;color:var(--sub);margin:0 0 16px}
+.opts{display:grid;gap:10px}
+button{font:inherit;color:inherit;cursor:pointer}
+.opt{text-align:left;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;font-weight:500;min-height:52px}
+.opt:hover{border-color:var(--acc)}
+.opt.sel{background:var(--accsoft);border-color:var(--acc)}
+.opt small{display:block;color:var(--sub);font-weight:400;font-size:13px}
+.btn{background:var(--acc);color:var(--on);border:0;border-radius:12px;padding:14px 22px;font-weight:700;font-size:16px}
+.ghost{background:none;border:0;color:var(--sub);padding:10px 4px;text-decoration:underline}
+:focus-visible{outline:3px solid var(--bar);outline-offset:2px}
+.row{display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+.res{border:1px solid var(--line);background:var(--card);border-radius:18px;padding:20px 18px;margin-bottom:14px}
+.res.first{border:2px solid var(--acc)}
+.rk{font-size:13px;color:var(--sub);font-weight:700}
+.res h3{margin:2px 0 4px;font-size:24px}
+.tag{color:var(--acc);font-weight:700;margin:0 0 10px}
+.meter{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:6px 0 14px}
+.meter i{display:block;height:100%;background:var(--bar)}
+.res ul{margin:6px 0 10px;padding-left:20px}
+.warn{font-size:14px;color:var(--sub);border-top:1px dashed var(--line);padding-top:10px;margin:0}
+.note{font-size:13px;color:var(--sub);margin-top:20px}
+.also{font-size:15px;color:var(--sub)}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){.prog i{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<div id="app"></div>
+</main>
+<script>
+const C={
+docomo:{n:"ドコモ",t:"店舗と安心感を重視する人向け",w:"月3GB程度なら割高。割引を使えないと高くなりやすい"},
+au:{n:"au",t:"店舗で相談でき、auひかり・Pontaと好相性",w:"少量利用や割引なしだと割高"},
+sb:{n:"ソフトバンク",t:"店舗・端末購入・PayPay連携が強い",w:"割引なしだと高く、月数GBだけなら割に合わない"},
+rakuten:{n:"楽天モバイル",t:"大容量が比較的安く、使った分だけ払う",w:"地下や建物内で電波が弱い場合がある。Rakuten Link利用が前提"},
+ahamo:{n:"ahamo",t:"月30GBと5分以内通話無料のドコモ系",w:"店舗相談は不可。月3GB以下だとオーバースペック"},
+povo:{n:"povo",t:"基本料0円、必要なときだけギガを買う",w:"買わないと速度が非常に遅くなる。管理の手間がある"},
+linemo:{n:"LINEMO",t:"LINEがギガを消費しにくいソフトバンク系",w:"LINE以外で大量通信する人、店舗相談したい人には不向き"},
+uq:{n:"UQ mobile",t:"大手と格安SIMの中間。店舗もある",w:"割引を使えないと割安になりにくい"},
+ymobile:{n:"Y!mobile",t:"家族割・SoftBank光・PayPayと好相性",w:"割引が使えないと割高。少量利用向きではない"},
+iij:{n:"IIJmio",t:"少量から大容量まで細かく選べる老舗",w:"昼休みなど混雑時の速度低下あり。店舗相談は不可"},
+mineo:{n:"mineo",t:"低速使い放題やギガ分けなど独自機能",w:"高画質動画・ゲームを常に快適に使うには不向き"},
+nihon:{n:"日本通信SIM",t:"ドコモ回線でとにかく安い",w:"混雑時間帯は遅くなりうる。初心者・店舗相談には不向き"},
+nuro:{n:"NUROモバイル",t:"低〜中容量が安く、SNS向けプランもある",w:"常に最高速度が必要な人には不向き。条件確認が必要"},
+his:{n:"HISモバイル",t:"月数GB向けの低料金プラン",w:"大容量・高速重視には不向き"},
+aeon:{n:"イオンモバイル",t:"イオン店舗で相談でき、家族でギガ分け可",w:"近所にイオンがないと利点が薄い。最安ではない"},
+jcom:{n:"J:COM MOBILE",t:"J:COMのTV・ネット・電気とまとめられる",w:"J:COM未契約だと利点が少ない"},
+biglobe:{n:"BIGLOBEモバイル",t:"動画・音楽の通信量を抑えるオプションあり",w:"対象外サービスを多用する人には不向き"},
+links:{n:"LinksMate",t:"対象ゲーム・SNSの通信量を抑えられる",w:"対象ゲームをしない人には利点が小さい"},
+yu:{n:"y.u mobile",t:"U-NEXTセットで、ギガも繰り越せる",w:"U-NEXTを使わないと魅力が薄い"},
+tone:{n:"トーンモバイル",t:"子ども・高齢者向けの見守り機能",w:"大容量通信や自由なアプリ利用には不向き"}
+};
+const Q=[
+{q:"毎月のデータ量はどれくらい？",h:"迷ったら、いま使っている会社のアプリで確認できます。",o:[
+{t:"3GB以下",l:"月3GB以下の少量利用",s:{nihon:2,his:3,iij:3,linemo:3,povo:2,nuro:2,aeon:1}},
+{t:"3〜10GB",l:"月3〜10GB程度の利用",s:{linemo:3,uq:2,ymobile:2,iij:2,nuro:3,nihon:2,mineo:2,biglobe:2,aeon:2,yu:1}},
+{t:"10〜30GB",l:"月10〜30GB程度の利用",s:{ahamo:3,uq:3,ymobile:2,nihon:3,linemo:2,rakuten:2,yu:2,docomo:1,au:1,sb:1}},
+{t:"30GB以上",l:"月30GB以上の大容量利用",s:{rakuten:3,ahamo:3,docomo:2,au:2,sb:2,povo:1,linemo:1}},
+{t:"月によって大きく変わる",l:"月ごとに使用量が変わる",s:{povo:3,rakuten:3,mineo:3}}]},
+{q:"店舗でのサポートは必要？",h:"機種変更・故障・設定を店員に任せたいか。",o:[
+{t:"必要",l:"店舗サポートがある",s:{docomo:3,au:3,sb:3,uq:3,ymobile:3,aeon:3,jcom:2,rakuten:1}},
+{t:"どちらでもよい",l:"",s:{}},
+{t:"不要（オンラインで済ませたい）",l:"オンライン手続きで問題ない",s:{ahamo:1,povo:1,linemo:1,iij:1,nihon:1,his:1,nuro:1,mineo:1}}]},
+{q:"スマホを主に何に使う？",h:"一番多い使い方を選んでください。",o:[
+{t:"LINE・SNS・調べもの",l:"LINE・SNS中心",s:{linemo:3,nuro:1,links:1,nihon:1}},
+{t:"動画・ゲーム（外出先でも）",l:"外出先で動画・ゲームを使う",s:{rakuten:2,ahamo:2,docomo:1,au:1,sb:1,uq:1}},
+{t:"YouTube・音楽・特定のゲーム",l:"特定サービスの利用が多い",s:{biglobe:2,links:2,yu:2,mineo:1}},
+{t:"ほぼ家のWi-Fiで、外ではあまり使わない",l:"外での通信が少ない",s:{povo:2,his:2,nihon:2,iij:2}}]},
+{q:"電話はどのくらいする？",h:"",o:[
+{t:"ほとんどしない",l:"通話が少ない",s:{povo:1,iij:1,linemo:1}},
+{t:"5分以内の短い電話が多い",l:"短い通話が多い",s:{ahamo:3,rakuten:2,nihon:1}},
+{t:"長電話をよくする",l:"通話が多い",s:{rakuten:3,nihon:2,docomo:1,au:1,sb:1}}]},
+{q:"すでに使っている、またはまとめたいサービスは？",h:"セット割・ポイントで実質料金が下がることがあります。",o:[
+{t:"ドコモ光・dカード・dポイント",l:"ドコモ系サービスを利用",s:{docomo:3,ahamo:2}},
+{t:"auひかり・Ponta・au PAY",l:"au系サービスを利用",s:{au:3,uq:3,povo:2}},
+{t:"SoftBank光・PayPay",l:"ソフトバンク系サービスを利用",s:{sb:3,ymobile:3,linemo:2}},
+{t:"楽天市場・楽天カード",l:"楽天サービスを利用",s:{rakuten:3}},
+{t:"J:COM・eo光・BIGLOBE光など",l:"ネット回線とのセット割が使える",s:{jcom:3,mineo:2,biglobe:3}},
+{t:"特にない",l:"",s:{iij:1,nihon:1,his:1,nuro:1}}]},
+{q:"重視するのはどれ？",h:"",o:[
+{t:"とにかく安く",l:"料金を最優先したい",s:{nihon:3,iij:3,his:3,linemo:2,povo:2,nuro:2}},
+{t:"つながりやすさ・通信品質",l:"通信品質を重視したい",s:{docomo:3,au:3,sb:3,ahamo:2,uq:1,ymobile:1}},
+{t:"料金と品質のバランス",l:"料金と品質のバランスを重視",s:{ahamo:3,uq:2,ymobile:2,linemo:2,povo:1,rakuten:1}}]},
+{q:"誰が使う？",h:"",o:[
+{t:"自分（大人）",l:"",s:{}},
+{t:"子ども",l:"子どもが使う（見守り・制限が必要）",s:{tone:3,docomo:1,au:1,sb:1,uq:1,ymobile:1}},
+{t:"高齢の家族",l:"高齢者向けのサポートが必要",s:{docomo:3,au:2,sb:2,ymobile:2,aeon:2,jcom:2,tone:2}}]},
+{q:"スマホ本体はどうする？",h:"",o:[
+{t:"今の端末を使う／自分で用意する",l:"端末は自分で用意できる",s:{ahamo:1,povo:1,linemo:1,nihon:1,his:1,nuro:1}},
+{t:"契約と一緒に買いたい・下取りしたい",l:"端末購入や下取りを頼みたい",s:{docomo:3,au:3,sb:3,ymobile:2,uq:2,iij:1,rakuten:1}}]}
+];
+let step=0,ans=[];
+const app=document.getElementById("app");
+const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function start(){step=0;ans=[];
+app.innerHTML=`<h1>あなたに合う<br>スマホ会社を探す</h1><p class="lead">8つの質問に答えるだけ。約1分で、相性のよい会社を上位3社まで絞り込みます。</p><button class="btn" id="go">質問をはじめる</button>`;
+document.getElementById("go").onclick=render}
+function render(){
+if(step>=Q.length)return result();
+const d=Q[step];
+app.innerHTML=`<div class="card"><div class="prog"><i style="width:${step/Q.length*100}%"></i></div><div class="cnt">${step+1} / ${Q.length}</div><h2>${esc(d.q)}</h2>${d.h?`<p class="hint">${esc(d.h)}</p>`:""}<div class="opts">${d.o.map((o,i)=>`<button class="opt${ans[step]===i?" sel":""}" data-i="${i}">${esc(o.t)}</button>`).join("")}</div><div class="row"><button class="ghost${step?"":" hide"}" id="bk">前の質問に戻る</button></div></div>`;
+app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{ans[step]=+b.dataset.i;step++;render()});
+const bk=document.getElementById("bk");if(bk)bk.onclick=()=>{step--;render()};
+window.scrollTo(0,0)}
+function result(){
+const sc={},why={};
+Object.keys(C).forEach(k=>{sc[k]=0;why[k]=[]});
+ans.forEach((a,i)=>{const o=Q[i].o[a];for(const k in o.s){sc[k]+=o.s[k];if(o.l&&o.s[k]>=2)why[k].push(o.l)}});
+const r=Object.keys(C).sort((a,b)=>sc[b]-sc[a]);
+const top=sc[r[0]]||1;
+const card=(k,i)=>`<section class="res${i?"":" first"}"><div class="rk">${i+1}位</div><h3>${C[k].n}</h3><p class="tag">${C[k].t}</p><div class="meter" role="img" aria-label="相性度 ${Math.round(sc[k]/top*100)}%"><i style="width:${Math.max(8,sc[k]/top*100)}%"></i></div>${why[k].length?`<div>あなたに合う理由</div><ul>${why[k].map(w=>`<li>${esc(w)}</li>`).join("")}</ul>`:""}<p class="warn">注意点：${C[k].w}</p></section>`;
+app.innerHTML=`<h1>あなたに合う候補</h1><p class="lead">回答との相性が高い順です。棒はトップを100%とした相対値です。</p>${r.slice(0,3).map(card).join("")}<p class="also">次点：${r.slice(3,6).map(k=>C[k].n).join("、")}</p><div class="row"><button class="btn" id="re">もう一度診断する</button><button class="ghost" id="ed">回答を修正する</button></div><p class="note">料金・キャンペーン・エリア・提供条件は変わります。契約前に各社の公式サイトで最新情報と、自宅や職場での電波状況を確認してください。</p>`;
+document.getElementById("re").onclick=start;
+document.getElementById("ed").onclick=()=>{step=0;render()};
+window.scrollTo(0,0)}
+start();
+</script>
+</body>
+</html>
