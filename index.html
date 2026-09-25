@@ -61,42 +61,109 @@ button{font:inherit;color:inherit;cursor:pointer}
 <div id="app"></div>
 </main>
 <script>
+// 各キャリアのデータ。price は「割引前・基本プラン料金」で統一（比較の基準を揃えるため）。
+// discount には割引適用時の目安を別途テキストで保持し、料金比較チャートには使わない。
+// m はそのプランで使える実際の上限GB。無制限プラン(実測速度が落ちない/実質使い放題)のみ Infinity。
+// updated: 料金を確認した日付。空欄の場合は未確認であることを明示する。
+// url: 公式の料金ページ。契約前に必ずここで最新情報を確認すること。
+const UPDATED = ""; // 例: "2026-09-25" のように、確認した日付を入れてください（全キャリア共通の確認日として扱われます）
 const C={
-docomo:{n:"ドコモ",t:"店舗と安心感を重視する人向け",w:"月3GB程度なら割高。割引を使えないと高くなりやすい",p:[{m:3,pl:"ドコモmini(〜3GB)",pr:"約6,798円/月"},{m:Infinity,pl:"ドコモMAX(無制限)",pr:"8,448円/月(家族+光+dカード割引で〜5,148円)"}]},
-au:{n:"au",t:"店舗で相談でき、auひかり・Pontaと好相性",w:"少量利用や割引なしだと割高",p:[{m:1,pl:"スマホミニプラン(〜1GB)",pr:"約3,278円/月"},{m:Infinity,pl:"使い放題MAX+ 5G(無制限)",pr:"7,458円/月(割引で〜4,928円)"}]},
-sb:{n:"ソフトバンク",t:"店舗・端末購入・PayPay連携が強い",w:"割引なしだと高く、月数GBだけなら割に合わない",p:[{m:3,pl:"ミニフィットプラン+(〜3GB)",pr:"約5,808円/月"},{m:30,pl:"ペイトク30",pr:"7,425円/月(割引で〜4,480円)"},{m:50,pl:"ペイトク50",pr:"8,525円/月(割引で〜6,028円)"},{m:Infinity,pl:"ペイトク無制限",pr:"9,625円/月(割引で〜7,128円)"}]},
-rakuten:{n:"楽天モバイル",t:"大容量が比較的安く、使った分だけ払う",w:"地下や建物内で電波が弱い場合がある。Rakuten Link利用が前提",p:[{m:3,pl:"Rakuten最強プラン(〜3GB)",pr:"1,078円/月"},{m:20,pl:"Rakuten最強プラン(3〜20GB)",pr:"2,178円/月"},{m:Infinity,pl:"Rakuten最強プラン(20GB超・無制限)",pr:"3,278円/月"}]},
-ahamo:{n:"ahamo",t:"月30GBと5分以内通話無料のドコモ系",w:"店舗相談は不可。月3GB以下だとオーバースペック",p:[{m:30,pl:"ahamo(30GB・5分かけ放題込)",pr:"2,970円/月"},{m:Infinity,pl:"ahamo大盛り(110GB)",pr:"4,950円/月"}]},
-povo:{n:"povo",t:"基本料0円、必要なときだけギガを買う",w:"買わないと速度が非常に遅くなる。管理の手間がある",p:[{m:3,pl:"povo(基本0円+3GBトッピング/30日)",pr:"990円/月相当"},{m:30,pl:"povo(30GBトッピング/30日)",pr:"2,780円/月相当"},{m:Infinity,pl:"povo(60GB/90日トッピング)",pr:"6,490円/90日相当"}]},
-linemo:{n:"LINEMO",t:"LINEがギガを消費しにくいソフトバンク系",w:"LINE以外で大量通信する人、店舗相談したい人には不向き",p:[{m:3,pl:"ベストプラン(〜3GB)",pr:"990円/月"},{m:10,pl:"ベストプラン(3〜10GB)",pr:"2,090円/月"},{m:Infinity,pl:"ベストプランV(30GB)",pr:"2,970円/月"}]},
-uq:{n:"UQ mobile",t:"大手と格安SIMの中間。店舗もある",w:"割引を使えないと割安になりにくい",p:[{m:4,pl:"ミニミニプラン(4GB)",pr:"2,365円/月(割引で〜1,078円)"},{m:20,pl:"コミコミプラン(20GB+10分かけ放題)",pr:"3,278円/月"},{m:Infinity,pl:"トクトクプラン2(段階制・大容量)",pr:"目安4,000円台〜/月"}]},
-ymobile:{n:"Y!mobile",t:"家族割・SoftBank光・PayPayと好相性",w:"割引が使えないと割高。少量利用向きではない",p:[{m:4,pl:"シンプル2 S(4GB)",pr:"約2,365円/月(割引あり)"},{m:20,pl:"シンプル2 M(20GB)",pr:"約4,015円/月(割引あり)"},{m:Infinity,pl:"シンプル2 L(30GB)",pr:"約5,115円/月(割引あり)"}]},
-iij:{n:"IIJmio",t:"少量から大容量まで細かく選べる老舗",w:"昼休みなど混雑時の速度低下あり。店舗相談は不可",p:[{m:2,pl:"ギガプラン 2GB",pr:"850円/月"},{m:10,pl:"ギガプラン 10GB",pr:"1,930円/月"},{m:Infinity,pl:"ギガプラン 20GB",pr:"2,700円/月"}]},
-mineo:{n:"mineo",t:"低速使い放題やギガ分けなど独自機能",w:"高画質動画・ゲームを常に快適に使うには不向き",p:[{m:5,pl:"マイピタ 5GB",pr:"1,518円/月"},{m:20,pl:"マイピタ 20GB",pr:"2,178円/月"},{m:Infinity,pl:"マイピタ+パケット放題Plus",pr:"約2,700円/月〜"}]},
-nihon:{n:"日本通信SIM",t:"ドコモ回線でとにかく安い",w:"混雑時間帯は遅くなりうる。初心者・店舗相談には不向き",p:[{m:2,pl:"合理的シンプル290(2GB)",pr:"1,390円/月"},{m:20,pl:"合理的20GBプラン",pr:"2,178円/月"},{m:Infinity,pl:"合理的みんなのプラン(30GB)",pr:"3,278円/月"}]},
-nuro:{n:"NUROモバイル",t:"低〜中容量が安く、SNS向けプランもある",w:"常に最高速度が必要な人には不向き。条件確認が必要",p:[{m:3,pl:"NEOプランS(〜3GB)",pr:"792円/月〜"},{m:20,pl:"NEOプラン(〜20GB)",pr:"2,090円/月〜"},{m:Infinity,pl:"NEOプラン+(大容量)",pr:"2,699円/月〜"}]},
-his:{n:"HISモバイル",t:"月数GB向けの低料金プラン",w:"大容量・高速重視には不向き",p:[{m:3,pl:"自由自在プラン(〜3GB)",pr:"610円/月〜"},{m:Infinity,pl:"自由自在プラン(〜7GB)",pr:"1,190円/月〜"}]},
-aeon:{n:"イオンモバイル",t:"イオン店舗で相談でき、家族でギガ分け可",w:"近所にイオンがないと利点が薄い。最安ではない",p:[{m:4,pl:"イオンモバイル 4GB",pr:"1,078円/月"},{m:20,pl:"イオンモバイル 20GB",pr:"2,068円/月"},{m:Infinity,pl:"イオンモバイル 50GB",pr:"2,948円/月"}]},
-jcom:{n:"J:COM MOBILE",t:"J:COMのTV・ネット・電気とまとめられる",w:"J:COM未契約だと利点が少ない",p:[{m:5,pl:"J:COM MOBILE S(1GB〜)",pr:"1,650円/月〜"},{m:Infinity,pl:"J:COM MOBILE L(無制限)",pr:"4,708円/月"}]},
-biglobe:{n:"BIGLOBEモバイル",t:"動画・音楽の通信量を抑えるオプションあり",w:"対象外サービスを多用する人には不向き",p:[{m:3,pl:"BIGLOBEモバイル 3GB",pr:"1,320円/月"},{m:20,pl:"BIGLOBEモバイル 20GB",pr:"2,970円/月"},{m:Infinity,pl:"BIGLOBEモバイル 30GB",pr:"3,410円/月"}]},
-links:{n:"LinksMate",t:"対象ゲーム・SNSの通信量を抑えられる",w:"対象ゲームをしない人には利点が小さい",p:[{m:3,pl:"LinksMate 3GB",pr:"1,210円/月"},{m:20,pl:"LinksMate 20GB",pr:"2,750円/月"},{m:Infinity,pl:"LinksMate 30GB",pr:"3,220円/月"}]},
-yu:{n:"y.u mobile",t:"U-NEXTセットで、ギガも繰り越せる",w:"U-NEXTを使わないと魅力が薄い",p:[{m:5,pl:"シングルプラン 5GB",pr:"2,178円/月"},{m:Infinity,pl:"U-NEXTセットプラン",pr:"2,970円/月〜"}]},
-tone:{n:"トーンモバイル",t:"子ども・高齢者向けの見守り機能",w:"大容量通信や自由なアプリ利用には不向き",p:[{m:Infinity,pl:"トーンモバイル 基本プラン",pr:"1,100円/月(見守り機能込み)"}]}
+docomo:{n:"ドコモ",t:"店舗と安心感を重視する人向け",w:"月3GB程度なら割高。割引を使えないと高くなりやすい",url:"https://www.docomo.ne.jp/charge/", p:[
+{m:3,pl:"ドコモmini(〜3GB)",price:6798,discount:""},
+{m:Infinity,pl:"ドコモMAX(無制限)",price:8448,discount:"家族+光+dカード割引適用で〜5,148円/月"}]},
+au:{n:"au",t:"店舗で相談でき、auひかり・Pontaと好相性",w:"少量利用や割引なしだと割高",url:"https://www.au.com/mobile/charge/", p:[
+{m:1,pl:"スマホミニプラン(〜1GB)",price:3278,discount:""},
+{m:Infinity,pl:"使い放題MAX+ 5G(無制限)",price:7458,discount:"割引適用で〜4,928円/月"}]},
+sb:{n:"ソフトバンク",t:"店舗・端末購入・PayPay連携が強い",w:"割引なしだと高く、月数GBだけなら割に合わない",url:"https://www.softbank.jp/mobile/charge/", p:[
+{m:3,pl:"ミニフィットプラン+(〜3GB)",price:5808,discount:""},
+{m:30,pl:"ペイトク30",price:7425,discount:"割引適用で〜4,480円/月"},
+{m:50,pl:"ペイトク50",price:8525,discount:"割引適用で〜6,028円/月"},
+{m:Infinity,pl:"ペイトク無制限",price:9625,discount:"割引適用で〜7,128円/月"}]},
+rakuten:{n:"楽天モバイル",t:"大容量が比較的安く、使った分だけ払う",w:"地下や建物内で電波が弱い場合がある。Rakuten Link利用が前提",url:"https://mobile.rakuten.co.jp/", p:[
+{m:3,pl:"Rakuten最強プラン(〜3GB)",price:1078,discount:""},
+{m:20,pl:"Rakuten最強プラン(3〜20GB)",price:2178,discount:""},
+{m:Infinity,pl:"Rakuten最強プラン(20GB超・無制限)",price:3278,discount:"自社回線エリア外では速度制限あり"}]},
+ahamo:{n:"ahamo",t:"月30GBと5分以内通話無料のドコモ系",w:"店舗相談は不可。月3GB以下だとオーバースペック",url:"https://ahamo.com/", p:[
+{m:30,pl:"ahamo(30GB・5分かけ放題込)",price:2970,discount:""},
+{m:110,pl:"ahamo大盛り(110GB)",price:4950,discount:""}]},
+povo:{n:"povo",t:"基本料0円、必要なときだけギガを買う",w:"買わないと速度が非常に遅くなる。管理の手間がある",url:"https://povo.jp/", p:[
+{m:3,pl:"povo(基本0円+3GBトッピング/30日)",price:990,discount:"月換算の目安。実際は都度購入"},
+{m:30,pl:"povo(30GBトッピング/30日)",price:2780,discount:"月換算の目安。実際は都度購入"},
+{m:60,pl:"povo(60GB/90日トッピング)",price:2163,discount:"6,490円/90日を月換算(実際は3か月分を一括購入)"}]},
+linemo:{n:"LINEMO",t:"LINEがギガを消費しにくいソフトバンク系",w:"LINE以外で大量通信する人、店舗相談したい人には不向き",url:"https://www.linemo.jp/", p:[
+{m:3,pl:"ベストプラン(〜3GB)",price:990,discount:""},
+{m:10,pl:"ベストプラン(3〜10GB)",price:2090,discount:""},
+{m:30,pl:"ベストプランV(30GB)",price:2970,discount:""}]},
+uq:{n:"UQ mobile",t:"大手と格安SIMの中間。店舗もある",w:"割引を使えないと割安になりにくい",url:"https://www.au.com/mobile/uq/", p:[
+{m:4,pl:"ミニミニプラン(4GB)",price:2365,discount:"割引適用で〜1,078円/月"},
+{m:20,pl:"コミコミプラン(20GB+10分かけ放題)",price:3278,discount:""},
+{m:Infinity,pl:"トクトクプラン2(段階制・大容量)",price:4200,discount:"段階制のため月4,000円台〜が目安。要公式確認"}]},
+ymobile:{n:"Y!mobile",t:"家族割・SoftBank光・PayPayと好相性",w:"割引が使えないと割高。少量利用向きではない",url:"https://www.ymobile.jp/", p:[
+{m:4,pl:"シンプル2 S(4GB)",price:2365,discount:"割引適用あり"},
+{m:20,pl:"シンプル2 M(20GB)",price:4015,discount:"割引適用あり"},
+{m:30,pl:"シンプル2 L(30GB)",price:5115,discount:"割引適用あり"}]},
+iij:{n:"IIJmio",t:"少量から大容量まで細かく選べる老舗",w:"昼休みなど混雑時の速度低下あり。店舗相談は不可",url:"https://www.iijmio.jp/", p:[
+{m:2,pl:"ギガプラン 2GB",price:850,discount:""},
+{m:10,pl:"ギガプラン 10GB",price:1930,discount:""},
+{m:20,pl:"ギガプラン 20GB",price:2700,discount:""}]},
+mineo:{n:"mineo",t:"低速使い放題やギガ分けなど独自機能",w:"高画質動画・ゲームを常に快適に使うには不向き",url:"https://mineo.jp/", p:[
+{m:5,pl:"マイピタ 5GB",price:1518,discount:""},
+{m:20,pl:"マイピタ 20GB",price:2178,discount:""},
+{m:Infinity,pl:"マイピタ+パケット放題Plus(低速使い放題オプション)",price:2700,discount:"上限超過後は低速(通常最大32kbps程度)での使い放題"}]},
+nihon:{n:"日本通信SIM",t:"ドコモ回線でとにかく安い",w:"混雑時間帯は遅くなりうる。初心者・店舗相談には不向き",url:"https://www.nihontsushin.com/", p:[
+{m:2,pl:"合理的シンプル290(2GB)",price:1390,discount:""},
+{m:20,pl:"合理的20GBプラン",price:2178,discount:""},
+{m:30,pl:"合理的みんなのプラン(30GB)",price:3278,discount:""}]},
+nuro:{n:"NUROモバイル",t:"低〜中容量が安く、SNS向けプランもある",w:"常に最高速度が必要な人には不向き。条件確認が必要",url:"https://mobile.nuro.jp/", p:[
+{m:3,pl:"NEOプランS(〜3GB)",price:792,discount:""},
+{m:20,pl:"NEOプラン(〜20GB)",price:2090,discount:""},
+{m:40,pl:"NEOプラン+(大容量)",price:2699,discount:"上限GB数は要公式確認"}]},
+his:{n:"HISモバイル",t:"月数GB向けの低料金プラン",w:"大容量・高速重視には不向き",url:"https://www.his-mobile.com/", p:[
+{m:3,pl:"自由自在プラン(〜3GB)",price:610,discount:""},
+{m:7,pl:"自由自在プラン(〜7GB)",price:1190,discount:""}]},
+aeon:{n:"イオンモバイル",t:"イオン店舗で相談でき、家族でギガ分け可",w:"近所にイオンがないと利点が薄い。最安ではない",url:"https://mobile.aeon.jp/", p:[
+{m:4,pl:"イオンモバイル 4GB",price:1078,discount:""},
+{m:20,pl:"イオンモバイル 20GB",price:2068,discount:""},
+{m:50,pl:"イオンモバイル 50GB",price:2948,discount:""}]},
+jcom:{n:"J:COM MOBILE",t:"J:COMのTV・ネット・電気とまとめられる",w:"J:COM未契約だと利点が少ない",url:"https://www.jcom.co.jp/service/mobile/", p:[
+{m:5,pl:"J:COM MOBILE S(1GB〜)",price:1650,discount:""},
+{m:Infinity,pl:"J:COM MOBILE L(無制限)",price:4708,discount:""}]},
+biglobe:{n:"BIGLOBEモバイル",t:"動画・音楽の通信量を抑えるオプションあり",w:"対象外サービスを多用する人には不向き",url:"https://join.biglobe.ne.jp/mobile/", p:[
+{m:3,pl:"BIGLOBEモバイル 3GB",price:1320,discount:""},
+{m:20,pl:"BIGLOBEモバイル 20GB",price:2970,discount:""},
+{m:30,pl:"BIGLOBEモバイル 30GB",price:3410,discount:""}]},
+links:{n:"LinksMate",t:"対象ゲーム・SNSの通信量を抑えられる",w:"対象ゲームをしない人には利点が小さい",url:"https://linksmate.jp/", p:[
+{m:3,pl:"LinksMate 3GB",price:1210,discount:""},
+{m:20,pl:"LinksMate 20GB",price:2750,discount:""},
+{m:30,pl:"LinksMate 30GB",price:3220,discount:""}]},
+yu:{n:"y.u mobile",t:"U-NEXTセットで、ギガも繰り越せる",w:"U-NEXTを使わないと魅力が薄い",url:"https://y-u.jp/", p:[
+{m:5,pl:"シングルプラン 5GB",price:2178,discount:""},
+{m:Infinity,pl:"U-NEXTセットプラン",price:2970,discount:"上限GB数・条件は要公式確認"}]},
+tone:{n:"トーンモバイル",t:"子ども・高齢者向けの見守り機能",w:"大容量通信や自由なアプリ利用には不向き",url:"https://t-one.co.jp/", p:[
+{m:Infinity,pl:"トーンモバイル 基本プラン",price:1100,discount:"見守り機能込み。速度・条件は要公式確認"}]}
 };
 // 質問の「データ量」回答インデックス → GB目安（プラン選定に使用）
 const GB_EST=[2,6,20,50,20];
-function pickPlan(k,gb){const tiers=C[k].p;for(const t of tiers){if(gb<=t.m)return t}return tiers[tiers.length-1]}
+function pickPlan(k,gb){
+const tiers=C[k].p;
+for(const t of tiers){if(gb<=t.m)return{tier:t,insufficient:false}}
+const last=tiers[tiers.length-1];
+if(last.m===Infinity)return{tier:last,insufficient:false};
+return{tier:last,insufficient:true}; // 最大容量プランでも希望GBに届かない
+}
 const EMOJI={docomo:"📶",au:"📡",sb:"⚡",rakuten:"🛒",ahamo:"🌐",povo:"🔋",linemo:"💬",uq:"🔷",ymobile:"💛",iij:"🔧",mineo:"🎛️",nihon:"🏷️",nuro:"🌙",his:"✈️",aeon:"🛍️",jcom:"📺",biglobe:"🎵",links:"🎮",yu:"🎬",tone:"👨‍👩‍👧"};
-function parsePrice(s){const m=s.replace(/,/g,"").match(/(\d+)円/);return m?parseInt(m[1],10):0}
 function priceChart(order,gb){
-const rows=order.map(k=>{const pl=pickPlan(k,gb);return{name:C[k].n,icon:EMOJI[k]||"",val:parsePrice(pl.pr)}});
+// 全社「割引前・基本料金」ベースで統一して比較する（discountは含めない）
+const rows=order.map(k=>{const {tier,insufficient}=pickPlan(k,gb);return{name:C[k].n,icon:EMOJI[k]||"",val:tier.price,insufficient}});
 const max=Math.max(...rows.map(r=>r.val),1);
 const bh=24,gap=12,padTop=8,barMaxW=150,leftW=104;
 const totalW=leftW+barMaxW+62;
 const h=padTop*2+rows.length*(bh+gap)-gap;
 const bars=rows.map((r,i)=>{const y=padTop+i*(bh+gap);const w=Math.max(6,r.val/max*barMaxW);
-return `<text x="0" y="${y+bh*0.68}" font-size="12" fill="var(--ink)">${esc(r.icon+" "+r.name)}</text><rect x="${leftW}" y="${y}" width="${barMaxW}" height="${bh}" rx="6" fill="var(--line)"></rect><rect x="${leftW}" y="${y}" width="${w}" height="${bh}" rx="6" fill="var(--acc)"></rect><text x="${leftW+barMaxW+8}" y="${y+bh*0.68}" font-size="12" font-weight="700" fill="var(--acc)">${r.val.toLocaleString()}円</text>`}).join("");
-return `<div class="chartcard"><div class="charttitle">月額料金比較（推奨プラン基準）</div><svg viewBox="0 0 ${totalW} ${h}" width="100%" role="img" aria-label="月額料金比較チャート">${bars}</svg></div>`}
+const label=(r.insufficient?"＊":"")+r.val.toLocaleString()+"円";
+return `<text x="0" y="${y+bh*0.68}" font-size="12" fill="var(--ink)">${esc(r.icon+" "+r.name)}</text><rect x="${leftW}" y="${y}" width="${barMaxW}" height="${bh}" rx="6" fill="var(--line)"></rect><rect x="${leftW}" y="${y}" width="${w}" height="${bh}" rx="6" fill="var(--acc)"></rect><text x="${leftW+barMaxW+8}" y="${y+bh*0.68}" font-size="12" font-weight="700" fill="var(--acc)">${esc(label)}</text>`}).join("");
+const hasInsufficient=rows.some(r=>r.insufficient);
+return `<div class="chartcard"><div class="charttitle">月額料金比較（推奨プラン・割引前の基本料金基準）</div><svg viewBox="0 0 ${totalW} ${h}" width="100%" role="img" aria-label="月額料金比較チャート">${bars}</svg>${hasInsufficient?'<p class="warn" style="margin-top:8px">＊最大容量プランでも希望データ量に届かない可能性があります</p>':""}</div>`}
 const Q=[
 {q:"毎月のデータ量はどれくらい？",h:"迷ったら、いま使っている会社のアプリで確認できます。",o:[
 {t:"3GB以下",l:"月3GB以下の少量利用",s:{nihon:2,his:3,iij:3,linemo:3,povo:2,nuro:2,aeon:1}},
@@ -104,10 +171,19 @@ const Q=[
 {t:"10〜30GB",l:"月10〜30GB程度の利用",s:{ahamo:3,uq:3,ymobile:2,nihon:3,linemo:2,rakuten:2,yu:2,docomo:1,au:1,sb:1}},
 {t:"30GB以上",l:"月30GB以上の大容量利用",s:{rakuten:3,ahamo:3,docomo:2,au:2,sb:2,povo:1,linemo:1}},
 {t:"月によって大きく変わる",l:"月ごとに使用量が変わる",s:{povo:3,rakuten:3,mineo:3}}]},
-{q:"店舗でのサポートは必要？",h:"機種変更・故障・設定を店員に任せたいか。",o:[
-{t:"必要",l:"店舗サポートがある",s:{docomo:3,au:3,sb:3,uq:3,ymobile:3,aeon:3,jcom:2,rakuten:1}},
+{q:"店舗でのサポートは必要？",h:"機種変更・故障・設定を店員に任せたいか。必須の場合、オンライン専業の会社は候補から外れます。",o:[
+{t:"必要",l:"店舗サポートがある",s:{docomo:3,au:3,sb:3,uq:3,ymobile:3,aeon:3,jcom:2,rakuten:1},must:{exclude:["ahamo","povo","linemo","iij","nihon","his","nuro","mineo","biglobe","links","yu","tone"]}},
 {t:"どちらでもよい",l:"",s:{}},
 {t:"不要（オンラインで済ませたい）",l:"オンライン手続きで問題ない",s:{ahamo:1,povo:1,linemo:1,iij:1,nihon:1,his:1,nuro:1,mineo:1}}]},
+{q:"一緒に使う家族の人数は？",h:"家族でまとめると割引が大きくなる会社があります。",o:[
+{t:"自分1人だけ",l:"",s:{}},
+{t:"家族2人以上でまとめたい",l:"家族で同じ会社にまとめたい",s:{docomo:2,au:2,sb:2,uq:2,ymobile:2}}]},
+{q:"自宅のネット回線（光回線）は？",h:"回線とのセット割で、スマホ代が大きく下がることがあります。",o:[
+{t:"ドコモ光",l:"ドコモ光とセット利用",s:{docomo:4,ahamo:1}},
+{t:"auひかり",l:"auひかりとセット利用",s:{au:4,uq:2}},
+{t:"SoftBank光",l:"SoftBank光とセット利用",s:{sb:4,ymobile:2,linemo:1}},
+{t:"J:COM光・eo光・BIGLOBE光など",l:"ネット回線とのセット割が使える",s:{jcom:3,mineo:1,biglobe:2}},
+{t:"契約していない／わからない",l:"",s:{}}]},
 {q:"スマホを主に何に使う？",h:"一番多い使い方を選んでください。",o:[
 {t:"LINE・SNS・調べもの",l:"LINE・SNS中心",s:{linemo:3,nuro:1,links:1,nihon:1}},
 {t:"動画・ゲーム（外出先でも）",l:"外出先で動画・ゲームを使う",s:{rakuten:2,ahamo:2,docomo:1,au:1,sb:1,uq:1}},
@@ -136,31 +212,75 @@ const Q=[
 {t:"今の端末を使う／自分で用意する",l:"端末は自分で用意できる",s:{ahamo:1,povo:1,linemo:1,nihon:1,his:1,nuro:1}},
 {t:"契約と一緒に買いたい・下取りしたい",l:"端末購入や下取りを頼みたい",s:{docomo:3,au:3,sb:3,ymobile:2,uq:2,iij:1,rakuten:1}}]}
 ];
-let step=0,ans=[];
+let step=0,ans=[],curCarrier="none",curPrice=null;
 const app=document.getElementById("app");
 const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-function start(){step=0;ans=[];
-app.innerHTML=`<h1>あなたに合う<br>スマホ会社とプランを探す</h1><p class="lead">8つの質問に答えるだけ。約1分で、相性のよい会社を上位3社まで絞り込み、具体的なプラン名と月額料金の目安まで提示します。</p><button class="btn" id="go">質問をはじめる</button>`;
-document.getElementById("go").onclick=render}
+function start(){step=0;ans=[];curCarrier="none";curPrice=null;
+app.innerHTML=`<h1>あなたに合う<br>スマホ会社とプランを探す</h1><p class="lead">${Q.length}つの質問に答えるだけ。約1〜2分で、相性のよい会社を上位3社まで絞り込み、具体的なプラン名と月額料金の目安まで提示します。今の契約も入力すると、乗り換え先の候補と料金差まで提示します。</p><button class="btn" id="go">質問をはじめる</button>`;
+document.getElementById("go").onclick=showCurrent}
+function showCurrent(){
+const carrierBtns=Object.keys(C).map(k=>`<button class="opt${curCarrier===k?" sel":""}" data-k="${k}">${EMOJI[k]||""} ${C[k].n}</button>`).join("")
++`<button class="opt${curCarrier==="other"?" sel":""}" data-k="other">その他の格安SIM・未掲載の会社</button>`
++`<button class="opt${curCarrier==="none"?" sel":""}" data-k="none">今は契約していない／わからない</button>`;
+app.innerHTML=`<div class="card"><h2>今、契約中の会社は？</h2><p class="hint">入力すると、乗り換えた場合の料金差まで提示します（未入力でも診断は進められます）。</p><div class="opts" id="curOpts">${carrierBtns}</div><label style="display:block;margin-top:18px;font-weight:700;font-size:14px">今の月額料金（概算・円、任意）</label><input type="number" inputmode="numeric" id="curPriceInput" placeholder="例: 6000" value="${curPrice===null?"":curPrice}" style="width:100%;margin-top:6px;padding:14px 16px;border:1.5px solid var(--line);border-radius:12px;font:inherit;background:var(--bg);color:var(--ink)"><div class="row"><button class="btn" id="curNext">次へ</button></div></div>`;
+app.querySelectorAll("#curOpts .opt").forEach(b=>b.onclick=()=>{curCarrier=b.dataset.k;app.querySelectorAll("#curOpts .opt").forEach(x=>x.classList.remove("sel"));b.classList.add("sel")});
+document.getElementById("curNext").onclick=()=>{const v=document.getElementById("curPriceInput").value;curPrice=v?Math.max(0,parseInt(v,10)||0):null;render()};
+window.scrollTo(0,0)}
 function render(){
 if(step>=Q.length)return result();
 const d=Q[step];
-app.innerHTML=`<div class="card"><div class="prog"><i style="width:${step/Q.length*100}%"></i></div><div class="cnt">${step+1} / ${Q.length}</div><h2>${esc(d.q)}</h2>${d.h?`<p class="hint">${esc(d.h)}</p>`:""}<div class="opts">${d.o.map((o,i)=>`<button class="opt${ans[step]===i?" sel":""}" data-i="${i}">${esc(o.t)}</button>`).join("")}</div><div class="row"><button class="ghost${step?"":" hide"}" id="bk">前の質問に戻る</button></div></div>`;
+app.innerHTML=`<div class="card"><div class="prog"><i style="width:${step/Q.length*100}%"></i></div><div class="cnt">${step+1} / ${Q.length}</div><h2>${esc(d.q)}</h2>${d.h?`<p class="hint">${esc(d.h)}</p>`:""}<div class="opts">${d.o.map((o,i)=>`<button class="opt${ans[step]===i?" sel":""}" data-i="${i}">${esc(o.t)}</button>`).join("")}</div><div class="row"><button class="ghost" id="bk">前の質問に戻る</button></div></div>`;
 app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{ans[step]=+b.dataset.i;step++;render()});
-const bk=document.getElementById("bk");if(bk)bk.onclick=()=>{step--;render()};
+document.getElementById("bk").onclick=()=>{if(step===0){showCurrent()}else{step--;render()}};
 window.scrollTo(0,0)}
 function result(){
 const sc={},why={};
 Object.keys(C).forEach(k=>{sc[k]=0;why[k]=[]});
-ans.forEach((a,i)=>{const o=Q[i].o[a];for(const k in o.s){sc[k]+=o.s[k];if(o.l&&o.s[k]>=2)why[k].push(o.l)}});
-const r=Object.keys(C).sort((a,b)=>sc[b]-sc[a]);
+let excluded=[];
+ans.forEach((a,i)=>{const o=Q[i].o[a];
+if(o.must&&o.must.exclude){o.must.exclude.forEach(k=>{if(C[k]&&!excluded.includes(k))excluded.push(k)})}
+for(const k in o.s){sc[k]+=o.s[k];if(o.l&&o.s[k]>=2)why[k].push(o.l)}});
+excluded.forEach(k=>{sc[k]=-Infinity});
+let r=Object.keys(C).filter(k=>sc[k]>-Infinity).sort((a,b)=>sc[b]-sc[a]);
+if(r.length<3)r=Object.keys(C).sort((a,b)=>sc[b]-sc[a]); // 除外しすぎた場合の安全策
+const excludedNote=excluded.length&&r.length>=3?`必須条件（店舗サポート）に合わないため、${excluded.map(k=>C[k].n).join("・")}を候補から除外しました。`:"";
 const top=sc[r[0]]||1;
 const gb=GB_EST[ans[0]]!==undefined?GB_EST[ans[0]]:20;
 const flexNote=ans[0]===4?"月ごとの使用量にムラがあるため、定額よりトッピング/段階制プランが向いています。":"";
-const top3=r.slice(0,3);
-const card=(k,i)=>{const plan=pickPlan(k,gb);
-return `<section class="res${i?"":" first"}"><div class="rk">${i+1}位</div><h3>${EMOJI[k]||""} ${C[k].n}</h3><p class="tag">${C[k].t}</p><div class="meterrow"><div class="meter" role="img" aria-label="相性度 ${Math.round(sc[k]/top*100)}%"><i style="width:${Math.max(8,sc[k]/top*100)}%"></i></div><span class="meterpct">相性 ${Math.round(sc[k]/top*100)}%</span></div>${why[k].length?`<div class="whytitle">あなたに合う理由</div><ul>${why[k].map(w=>`<li>${esc(w)}</li>`).join("")}</ul>`:""}<div class="plan"><span class="planname">推奨プラン：${esc(plan.pl)}</span><span class="planprice">${esc(plan.pr)}</span></div><p class="warn">注意点：${C[k].w}</p></section>`};
-app.innerHTML=`<h1>あなたに合う候補</h1><p class="lead">回答との相性が高い順に、キャリアと具体的なプラン・料金目安まで提示します。</p>${flexNote?`<p class="hint">${flexNote}</p>`:""}${priceChart(top3,gb)}${top3.map(card).join("")}<p class="also">次点：${r.slice(3,6).map(k=>EMOJI[k]+C[k].n).join("、")}</p><div class="row"><button class="btn" id="re">もう一度診断する</button><button class="ghost" id="ed">回答を修正する</button></div><p class="note">料金は基本プラン料金の目安（税込）です。家族割・光回線セット割・クレジットカード割等の適用有無で実質額は変わります。キャンペーン・エリア・提供条件も変わるため、契約前に各社公式サイトで最新情報と、自宅や職場での電波状況を確認してください。</p>`;
+const hasCurrent=C[curCarrier]!==undefined; // 現在の契約が実在キャリアとして選択されているか
+const switchCandidates=r.filter(k=>k!==curCarrier); // 乗り換え先候補からは今の契約先を除く
+const top3=switchCandidates.slice(0,3);
+let switchBanner="";
+if(curPrice!==null&&curPrice>0&&top3.length){
+const bestKey=top3[0];
+const bestPrice=pickPlan(bestKey,gb).tier.price;
+const diff=curPrice-bestPrice;
+if(hasCurrent&&r[0]===curCarrier){
+switchBanner=`回答との相性は今の契約先（${C[curCarrier].n}）が最も高い結果でした。乗り換えるより、同じ会社内でのプラン見直しが合っている可能性があります。`;
+}else if(diff>=300){
+switchBanner=`今の月額（${curPrice.toLocaleString()}円）と比べて、${C[bestKey].n}への乗り換えで月あたり約${diff.toLocaleString()}円（年間約${(diff*12).toLocaleString()}円）安くなる可能性があります。`;
+}else if(diff<=-300){
+switchBanner=`候補の会社は今の月額（${curPrice.toLocaleString()}円）より高くなる可能性があります。料金より通信品質やサービスの違いを比べる材料としてご覧ください。`;
+}else{
+switchBanner=`候補の会社の料金は、今の月額（${curPrice.toLocaleString()}円）とほぼ同水準です。`;
+}
+}else if(hasCurrent&&r[0]===curCarrier){
+switchBanner=`回答との相性は今の契約先（${C[curCarrier].n}）が最も高い結果でした。乗り換えるより、同じ会社内でのプラン見直しが合っている可能性があります。`;
+}
+const card=(k,i)=>{const {tier,insufficient}=pickPlan(k,gb);
+const priceLabel=`${tier.price.toLocaleString()}円/月`+(tier.discount?`（${esc(tier.discount)}）`:"");
+const capWarn=insufficient?`<p class="warn">＊このキャリアの最大容量プラン（〜${tier.m}GB）でも、希望のデータ量には届かない可能性があります</p>`:"";
+const confirmed=UPDATED?`確認日: ${esc(UPDATED)}`:"確認日: 未確認（要公式サイト確認）";
+let diffLine="";
+if(curPrice!==null&&curPrice>0){
+const d=curPrice-tier.price;
+if(d>=100)diffLine=`<p class="warn" style="color:var(--acc);font-weight:700">今の料金より月${d.toLocaleString()}円安い見込み（年間約${(d*12).toLocaleString()}円）</p>`;
+else if(d<=-100)diffLine=`<p class="warn">今の料金より月${Math.abs(d).toLocaleString()}円高い見込み</p>`;
+else diffLine=`<p class="warn">今の料金とほぼ同じ見込み</p>`;
+}
+return `<section class="res${i?"":" first"}"><div class="rk">${i+1}位</div><h3>${EMOJI[k]||""} ${C[k].n}</h3><p class="tag">${C[k].t}</p><div class="meterrow"><div class="meter" role="img" aria-label="相性度 ${Math.round(sc[k]/top*100)}%"><i style="width:${Math.max(8,sc[k]/top*100)}%"></i></div><span class="meterpct">相性 ${Math.round(sc[k]/top*100)}%</span></div>${why[k].length?`<div class="whytitle">あなたに合う理由</div><ul>${why[k].map(w=>`<li>${esc(w)}</li>`).join("")}</ul>`:""}<div class="plan"><span class="planname">推奨プラン：${esc(tier.pl)}</span><span class="planprice">${esc(priceLabel)}</span></div>${diffLine}${capWarn}<p class="warn">注意点：${esc(C[k].w)}</p><p class="warn">${confirmed} ／ <a href="${esc(C[k].url)}" target="_blank" rel="noopener">公式サイトで料金を確認</a></p></section>`};
+const curSummary=`<p class="hint">今の契約：${hasCurrent?EMOJI[curCarrier]+" "+C[curCarrier].n:curCarrier==="other"?"その他の格安SIM":"未入力"}${curPrice!==null?`／月額 約${curPrice.toLocaleString()}円`:""}</p>`;
+app.innerHTML=`<h1>あなたに合う候補</h1><p class="lead">回答との相性が高い順に、乗り換え先の候補と具体的なプラン・料金目安を提示します。</p>${curSummary}${switchBanner?`<p class="hint" style="font-weight:700">${esc(switchBanner)}</p>`:""}${excludedNote?`<p class="hint">${esc(excludedNote)}</p>`:""}${flexNote?`<p class="hint">${flexNote}</p>`:""}${priceChart(top3,gb)}${top3.map(card).join("")}<p class="also">次点：${switchCandidates.slice(3,6).map(k=>EMOJI[k]+C[k].n).join("、")}</p><div class="row"><button class="btn" id="re">もう一度診断する</button><button class="ghost" id="ed">回答を修正する</button></div><p class="note">料金は基本プラン料金の目安（税込）です。家族割・光回線セット割・クレジットカード割等の適用有無で実質額は変わります。キャンペーン・エリア・提供条件も変わるため、契約前に各社公式サイトで最新情報と、自宅や職場での電波状況を確認してください。乗り換えの際は違約金・端末残債・MNP転出手数料の有無も必ず確認してください。</p>`;
 document.getElementById("re").onclick=start;
 document.getElementById("ed").onclick=()=>{step=0;render()};
 window.scrollTo(0,0)}
